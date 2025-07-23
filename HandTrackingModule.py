@@ -39,10 +39,10 @@ class HandDetector():
 
             for id, lm in enumerate(myHand.landmark):
                 h, w, c = img.shape # height, width, columns
-                cx, cy = int(lm.x*w), int(lm.y*h) # pixel positions of each landmark on the hand
+                cx, cy = int(lm.x*w), int(lm.y*h) # pixel positions of each landmark on the hand lm.x returns a fraction multiply by the width to get the actual pixel position
                 #print(id, cx, cy)       # find out the coordinates for the 21 different landmarks, id represented the landmark
 
-                lmList.append([id, cx, cy])
+                lmList.append([id, cx, cy, lm.z])   # lm.z is the relative depth not very reliable
 
                 if draw:
                     cv2.circle(img, (cx,cy),5, (253, 255, 57),cv2.FILLED)

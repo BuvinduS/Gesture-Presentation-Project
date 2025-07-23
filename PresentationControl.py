@@ -9,7 +9,7 @@ import time
 import pyautogui
 
 lastSwipeTime = 0
-cooldownTime = 1
+cooldownTime = 2
 displayGesture = None
 displayTime = 0
 lastGestureDirection = None
@@ -26,7 +26,7 @@ detector = htm.HandDetector(detectionCon=0.7)
 cap = getCamera()
 xPosHistory = deque(maxlen=10)
 
-def detectSwipe(posHistory, distanceThreshold = 100, timeThreshold = 0.5):
+def detectSwipe(posHistory, depth, baseThreshold = 100, timeThreshold = 0.5):
     if len(posHistory) < 2:
         return None
 
@@ -36,7 +36,10 @@ def detectSwipe(posHistory, distanceThreshold = 100, timeThreshold = 0.5):
     timeTaken = timeEnd - timeStart
     distanceTravelled = xEnd - xStart
 
-    if abs(distanceTravelled) > distanceThreshold and timeTaken < timeThreshold:
+    scalingFactor = 1 + abs(depth) * 3
+    scaledThreshold = baseThreshold * scalingFactor
+
+    if abs(distanceTravelled) > scaledThreshold and timeTaken < timeThreshold:
         if distanceTravelled > 0:
             return "Right"
         else:
@@ -45,17 +48,18 @@ def detectSwipe(posHistory, distanceThreshold = 100, timeThreshold = 0.5):
     return None
 
 
-
 def controlPresentation(xPosHistory, lmList, img, indicate=True):
     global lastSwipeTime, displayTime, displayGesture, lastGestureDirection, lastGestureTime
     currTime = time.time()
     if len(lmList) != 0:
         x1, y1 = lmList[8][1], lmList[8][2]     # x coordinate of the index fingertip
+        depth = lmList[8][3] if len(lmList[8]) > 3 else 0 # lmList[8][3] is the Z-depth (if available) Relative depth from the wrist
         cv2.circle(img, (x1, y1), 5, (0, 0, 0), cv2.FILLED)
+        cv2.putText(img, f"Current depth : {depth}", (750, 70), cv2.FONT_ITALIC, 1, (255, 0, 0), 3)
         xPosHistory.append((x1, currTime))
 
         if currTime - lastSwipeTime > cooldownTime:
-            gesture = detectSwipe(xPosHistory)
+            gesture = detectSwipe(xPosHistory, depth=depth)
 
             if gesture:
                 if lastGestureDirection == None or gesture == lastGestureDirection:
