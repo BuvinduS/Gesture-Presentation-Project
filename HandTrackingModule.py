@@ -29,6 +29,37 @@ class HandDetector():
 
         return img
 
+    def findTwoHands(self, img, draw=True):
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Hands class only uses RGB images. So we need to convert from BGR to RGB
+        self.results = self.hands.process(imgRGB)
+
+        handData = []
+
+        if self.results.multi_hand_landmarks and self.results.multi_handedness:
+            for i, handLms in enumerate(self.results.multi_hand_landmarks):
+                # Draw landmarks
+                self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
+
+                label = self.results.multi_handedness[i].classification[0].label # Left or right
+                score = self.results.multi_handedness[i].classification[0].score   # Float between 0.0 and 1.0
+
+                lmList = []
+                h, w, c = img.shape
+
+                for id, lm in enumerate(handLms.landmark):
+                    cx, cy = int(lm.x*w), int(lm.y*h)
+                    lmList.append([id, cx, cy, lm.z])
+
+                    if draw:
+                        cv2.circle(img, (cx, cy), 5, (253, 255, 57), cv2.FILLED)
+
+                if draw:
+                    self.mpDraw.draw_landmarks(img, handLms, self.mpHands.HAND_CONNECTIONS)
+
+                handData.append((label, lmList))
+
+        return img, handData
+
 
 
     def findPosition(self, img, handNo = 0, draw=True):

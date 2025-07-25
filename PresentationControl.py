@@ -9,12 +9,12 @@ import time
 import pyautogui
 
 lastSwipeTime = 0
-cooldownTime = 2
+cooldownTime = 1
 displayGesture = None
 displayTime = 0
 lastGestureDirection = None
 lastGestureTime = 0
-gestureResetDelay = 1
+gestureResetDelay = 0.5
 
 def getCamera(wCam=1280, hCam=760):
     cap = cv2.VideoCapture(0)
@@ -24,9 +24,10 @@ def getCamera(wCam=1280, hCam=760):
 
 detector = htm.HandDetector(detectionCon=0.7)
 cap = getCamera()
-xPosHistory = deque(maxlen=10)
+xPosHistoryLeft = deque(maxlen=10)
+xPosHistoryRight = deque(maxlen=10)
 
-def detectSwipe(posHistory, depth, baseThreshold = 100, timeThreshold = 0.5):
+def detectSwipe(posHistory, depth, baseThreshold = 100, timeThreshold = 0.8):
     if len(posHistory) < 2:
         return None
 
@@ -36,8 +37,10 @@ def detectSwipe(posHistory, depth, baseThreshold = 100, timeThreshold = 0.5):
     timeTaken = timeEnd - timeStart
     distanceTravelled = xEnd - xStart
 
-    scalingFactor = 1 + abs(depth) * 3
+    scalingFactor = 1 + abs(depth) * 2
     scaledThreshold = baseThreshold * scalingFactor
+
+    # print(f'travelled a distance of  {distanceTravelled} in {timeTaken} ,while the threshold is {scaledThreshold}')
 
     if abs(distanceTravelled) > scaledThreshold and timeTaken < timeThreshold:
         if distanceTravelled > 0:
@@ -48,7 +51,7 @@ def detectSwipe(posHistory, depth, baseThreshold = 100, timeThreshold = 0.5):
     return None
 
 
-def controlPresentation(xPosHistory, lmList, img, indicate=True):
+def controlPresentation(xPosHistory, lmList, img, handLabel, indicate=True):
     global lastSwipeTime, displayTime, displayGesture, lastGestureDirection, lastGestureTime
     currTime = time.time()
     if len(lmList) != 0:
@@ -61,7 +64,7 @@ def controlPresentation(xPosHistory, lmList, img, indicate=True):
         if currTime - lastSwipeTime > cooldownTime:
             gesture = detectSwipe(xPosHistory, depth=depth)
 
-            if gesture:
+            if gesture == handLabel:
                 if lastGestureDirection == None or gesture == lastGestureDirection:
                     print(f"Detected {gesture} swipe")
                     lastSwipeTime = currTime
@@ -86,10 +89,19 @@ def controlPresentation(xPosHistory, lmList, img, indicate=True):
 
 while True:
     success, img = cap.read()
-    img = detector.findHands(img)       # Find the hand in the video
-    lmList = detector.findPosition(img, draw=False)
+    img = cv2.flip(img, 1)
+    # img = detector.findHands(img)       # Find the hand in the video
+    # lmList = detector.findPosition(img, draw=False)
 
-    controlPresentation(xPosHistory, lmList, img)
+    img, hands = detector.findTwoHands(img)
+
+    for label, lmList in hands:
+        if label == "Right":
+            controlPresentation(xPosHistoryRight, lmList, img, handLabel="Right")
+            # print("Right Hand!")
+        elif label == "Left":
+            controlPresentation(xPosHistoryLeft, lmList, img, handLabel="Left")
+            # print("Left Hand!")
 
 
     if displayGesture and time.time() - displayTime < 1.5:
